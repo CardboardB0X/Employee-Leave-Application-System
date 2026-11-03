@@ -89,7 +89,7 @@ export default function RightRail({ user, onApplyClick }: RightRailProps) {
   const isSupervisor = ["SUPER_ADMIN", "HR_ADMIN", "MANAGER"].includes(user.role);
 
   return (
-    <aside className="w-72 shrink-0 flex flex-col gap-4 overflow-y-auto pr-0.5 select-none relative">
+    <aside className="w-full shrink-0 flex flex-col gap-4 select-none relative">
       {/* 1. Primary Action Button (Outcrowd Pill with Soft Elevation) */}
       <button
         onClick={onApplyClick}

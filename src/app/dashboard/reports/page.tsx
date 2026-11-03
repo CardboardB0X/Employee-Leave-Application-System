@@ -307,7 +307,7 @@ export default function ReportsPage() {
 
         {/* Transaction Records Table */}
         <div className="bg-white rounded-lg border border-slate-200/80 shadow-subtle overflow-hidden print:border-slate-300 print:shadow-none">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block print:block overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px] print:bg-slate-100">
                 <tr>
@@ -376,6 +376,45 @@ export default function ReportsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Stacked Card View */}
+          <div className="md:hidden divide-y divide-slate-100 print:hidden">
+            {loading ? (
+              <div className="text-center py-8 text-slate-400 font-medium text-xs">
+                Compiling leave report...
+              </div>
+            ) : leaves.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 font-medium text-xs">
+                No leave records match the specified filters.
+              </div>
+            ) : (
+              leaves.map((l) => (
+                <div key={l.id} className="p-4 space-y-2 bg-white hover:bg-slate-50/70 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-xs text-slate-900">{l.user.firstName} {l.user.lastName}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{l.requestNumber} • {l.user.department?.name || "General"}</p>
+                    </div>
+                    <StatusBadge status={l.status} size="sm" />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
+                    <span className="font-medium text-slate-800">{l.leaveType.name}</span>
+                    <span className="font-mono font-bold text-corporate-700 bg-corporate-50 px-2 py-0.5 rounded border border-corporate-200">
+                      {Number(l.totalDays)} days
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-slate-400">
+                    {new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}
+                  </p>
+                  {l.reason && (
+                    <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
+                      &quot;{l.reason}&quot;
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           <div className="px-4 py-2 border-t border-slate-200/70 bg-slate-50/70 text-[11px] text-slate-400 font-mono print:hidden">

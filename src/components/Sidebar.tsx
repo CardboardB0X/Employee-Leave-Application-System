@@ -10,7 +10,6 @@ import {
   ShieldAlert,
   Users,
   WalletCards,
-  Building2,
   User,
   FileBarChart,
   Tag,
@@ -27,9 +26,16 @@ interface SidebarProps {
     department: string;
   };
   pendingApprovalsCount?: number;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ user, pendingApprovalsCount = 0 }: SidebarProps) {
+export default function Sidebar({
+  user,
+  pendingApprovalsCount = 0,
+  isMobile = false,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -124,11 +130,19 @@ export default function Sidebar({ user, pendingApprovalsCount = 0 }: SidebarProp
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200/80 text-slate-700 flex flex-col justify-between shrink-0 select-none shadow-subtle transition-all duration-200">
-      <div>
+    <aside
+      className={`w-64 bg-white border-r border-slate-200/80 text-slate-700 flex flex-col justify-between shrink-0 select-none shadow-subtle transition-all duration-200 ${
+        isMobile ? "h-full w-full" : "h-screen"
+      }`}
+    >
+      <div className="overflow-y-auto">
         {/* Brand Header */}
         <div className="h-14 sm:h-16 flex items-center justify-between px-5 border-b border-slate-200/70">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <Link
+            href="/dashboard"
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 group"
+          >
             <div className="w-8 h-8 rounded-md bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shadow-subtle transition-transform duration-200 group-hover:scale-105 border border-emerald-600">
               CvSU
             </div>
@@ -180,14 +194,15 @@ export default function Sidebar({ user, pendingApprovalsCount = 0 }: SidebarProp
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                      onClick={onNavigate}
+                      className={`flex items-center justify-between px-2.5 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all duration-150 min-h-[38px] ${
                         isActive
                           ? "bg-corporate-600 text-white shadow-subtle font-semibold"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 active:bg-slate-200/70"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Icon className={`w-3.5 h-3.5 transition-transform duration-150 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`} />
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={`w-4 h-4 transition-transform duration-150 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`} />
                         <span>{item.label}</span>
                       </div>
 
@@ -209,9 +224,9 @@ export default function Sidebar({ user, pendingApprovalsCount = 0 }: SidebarProp
       <div className="p-3 border-t border-slate-200/70">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50/70 transition-all duration-150"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 sm:py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50/70 transition-all duration-150 min-h-[38px]"
         >
-          <LogOut className="w-3.5 h-3.5" />
+          <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
         </button>
       </div>

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import prisma from "@/lib/db";
-import Sidebar from "@/components/Sidebar";
+import DashboardShell from "@/components/DashboardShell";
 import SessionInactivityGuard from "@/components/SessionInactivityGuard";
 import { ToastProvider } from "@/components/Toast";
 
@@ -49,31 +49,22 @@ export default async function DashboardLayout({
     });
   }
 
+  const serializableUser = {
+    id: user.id,
+    employeeCode: user.employeeCode,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    role: user.role.name as any,
+    department: user.department?.name || "Unassigned",
+  };
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 antialiased">
-      {/* 1. Left Enterprise Fixed Sidebar */}
-      <Sidebar
-        user={{
-          id: user.id,
-          employeeCode: user.employeeCode,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role.name as any,
-          department: user.department?.name || "Unassigned",
-        }}
-        pendingApprovalsCount={pendingCount}
-      />
-
-      {/* 2. Main Enterprise Content Area */}
-      <ToastProvider>
-        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50">
-          {children}
-        </div>
-      </ToastProvider>
-
-      {/* 3. Session Inactivity Security Guard */}
+    <ToastProvider>
+      <DashboardShell user={serializableUser} pendingApprovalsCount={pendingCount}>
+        {children}
+      </DashboardShell>
       <SessionInactivityGuard />
-    </div>
+    </ToastProvider>
   );
 }

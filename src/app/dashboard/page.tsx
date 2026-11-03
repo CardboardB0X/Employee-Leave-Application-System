@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import StatusBadge from "@/components/StatusBadge";
-import ApplyLeaveModal from "@/components/ApplyLeaveModal";
-import CscForm6Modal from "@/components/CscForm6Modal";
 import CircularProgressMeter from "@/components/CircularProgressMeter";
 import { useToast } from "@/components/Toast";
 import RightRail from "@/components/RightRail";
@@ -20,7 +19,17 @@ import {
   CalendarCheck2,
   X,
   FileCheck,
+  User as UserIcon,
 } from "lucide-react";
+
+// Performance Optimization: Dynamically load heavy dialog modals on demand
+const ApplyLeaveModal = dynamic(() => import("@/components/ApplyLeaveModal"), {
+  ssr: false,
+});
+
+const CscForm6Modal = dynamic(() => import("@/components/CscForm6Modal"), {
+  ssr: false,
+});
 
 export default function DashboardPage() {
   const { toast } = useToast();
@@ -112,52 +121,80 @@ export default function DashboardPage() {
     }
   };
 
-  // Quotas calculations
-  const vacationBal = balances.find((b) => b.leaveType?.code === "VL");
-  const vacAvailable = vacationBal
-    ? Number(vacationBal.totalAllocated) +
-      Number(vacationBal.carriedOver) -
-      Number(vacationBal.usedDays) -
-      Number(vacationBal.pendingDays)
-    : 0;
-  const vacTotal = vacationBal
-    ? Number(vacationBal.totalAllocated) + Number(vacationBal.carriedOver)
-    : 15;
-  const vacPct = vacTotal > 0 ? Math.round((vacAvailable / vacTotal) * 100) : 100;
+  // Quotas calculations (memoized to avoid re-renders)
+  const {
+    vacAvailable,
+    vacTotal,
+    vacPct,
+    sickAvailable,
+    sickTotal,
+    sickPct,
+    totalUsedDays,
+    totalAllocatedAll,
+    pendingRequestsCount,
+  } = useMemo(() => {
+    const vacationBal = balances.find((b) => b.leaveType?.code === "VL");
+    const vacAvail = vacationBal
+      ? Number(vacationBal.totalAllocated) +
+        Number(vacationBal.carriedOver) -
+        Number(vacationBal.usedDays) -
+        Number(vacationBal.pendingDays)
+      : 0;
+    const vacTot = vacationBal
+      ? Number(vacationBal.totalAllocated) + Number(vacationBal.carriedOver)
+      : 15;
+    const vacP = vacTot > 0 ? Math.round((vacAvail / vacTot) * 100) : 100;
 
-  const sickBal = balances.find((b) => b.leaveType?.code === "SL");
-  const sickAvailable = sickBal
-    ? Number(sickBal.totalAllocated) +
-      Number(sickBal.carriedOver) -
-      Number(sickBal.usedDays) -
-      Number(sickBal.pendingDays)
-    : 0;
-  const sickTotal = sickBal
-    ? Number(sickBal.totalAllocated) + Number(sickBal.carriedOver)
-    : 10;
-  const sickPct = sickTotal > 0 ? Math.round((sickAvailable / sickTotal) * 100) : 100;
+    const sickBal = balances.find((b) => b.leaveType?.code === "SL");
+    const sickAvail = sickBal
+      ? Number(sickBal.totalAllocated) +
+        Number(sickBal.carriedOver) -
+        Number(sickBal.usedDays) -
+        Number(sickBal.pendingDays)
+      : 0;
+    const sickTot = sickBal
+      ? Number(sickBal.totalAllocated) + Number(sickBal.carriedOver)
+      : 10;
+    const sickP = sickTot > 0 ? Math.round((sickAvail / sickTot) * 100) : 100;
 
-  const totalUsedDays = balances.reduce((sum, b) => sum + Number(b.usedDays || 0), 0);
-  const totalAllocatedAll =
-    balances.reduce(
-      (sum, b) => sum + Number(b.totalAllocated || 0) + Number(b.carriedOver || 0),
-      0
-    ) || 30;
+    const used = balances.reduce((sum, b) => sum + Number(b.usedDays || 0), 0);
+    const allocated =
+      balances.reduce(
+        (sum, b) => sum + Number(b.totalAllocated || 0) + Number(b.carriedOver || 0),
+        0
+      ) || 30;
 
-  const pendingRequestsCount = leaves.filter(
-    (l) => l.status === "PENDING" || l.status === "MANAGER_APPROVED"
-  ).length;
+    const pending = leaves.filter(
+      (l) => l.status === "PENDING" || l.status === "MANAGER_APPROVED"
+    ).length;
+
+    return {
+      vacAvailable: vacAvail,
+      vacTotal: vacTot,
+      vacPct: vacP,
+      sickAvailable: sickAvail,
+      sickTotal: sickTot,
+      sickPct: sickP,
+      totalUsedDays: used,
+      totalAllocatedAll: allocated,
+      pendingRequestsCount: pending,
+    };
+  }, [balances, leaves]);
 
   // Filter leaves
-  const filteredLeaves = leaves.filter((leave) => {
-    const matchesStatus = statusFilter === "ALL" || leave.status === statusFilter;
-    const matchesSearch =
-      leave.requestNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      leave.leaveType?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      leave.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `${leave.user?.firstName} ${leave.user?.lastName}`.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filteredLeaves = useMemo(() => {
+    return leaves.filter((leave) => {
+      const matchesStatus = statusFilter === "ALL" || leave.status === statusFilter;
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        leave.requestNumber.toLowerCase().includes(q) ||
+        leave.leaveType?.name.toLowerCase().includes(q) ||
+        leave.reason.toLowerCase().includes(q) ||
+        `${leave.user?.firstName} ${leave.user?.lastName}`.toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
+    });
+  }, [leaves, statusFilter, searchQuery]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
@@ -167,12 +204,12 @@ export default function DashboardPage() {
         breadcrumbs={["Portal", "Overview"]}
       />
 
-      {/* Main Content Workspace Layout */}
-      <div className="flex-1 flex gap-5 overflow-hidden px-5 sm:px-8 pb-6 pt-4 animate-fade-in">
-        {/* Center Primary Scrollable Stage */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-0.5">
+      {/* Main Content Workspace Layout: Responsive side-by-side on desktop, fluid vertical stack on mobile */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-5 overflow-y-auto px-4 sm:px-8 pb-6 pt-4 animate-fade-in">
+        {/* Center Primary Stage */}
+        <div className="flex-1 min-w-0 space-y-4">
           {/* 1. Outcrowd-Style Circular Metric Strip (4 Cards) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
             {/* Metric 1: Vacation Leave */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02),0_6px_16px_-6px_rgba(0,0,0,0.03)] hover:shadow-card hover:-translate-y-1 transition-all duration-200 cursor-default flex items-center justify-between">
               <div>
@@ -274,38 +311,54 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 2. Decluttered Application Register Table */}
-          <div className="bg-white rounded-lg border border-slate-200/70 shadow-subtle overflow-hidden">
+          {/* 2. Decluttered Application Register Table / Mobile Stacked Cards */}
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Leave Applications Register"
+            className="bg-white rounded-2xl border border-slate-200/80 shadow-subtle overflow-hidden content-visibility-auto"
+          >
             {/* Toolbar */}
-            <div className="p-3.5 sm:px-5 border-b border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Leave Applications
-                </h3>
-                <span className="text-[11px] text-slate-400">({filteredLeaves.length})</span>
+            <div className="p-3.5 sm:px-5 border-b border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Leave Applications
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-mono">({filteredLeaves.length})</span>
+                </div>
+
+                {/* Mobile Quick Apply Pill Button */}
+                <button
+                  onClick={() => setIsApplyModalOpen(true)}
+                  className="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-corporate-600 hover:bg-corporate-700 text-white text-xs font-semibold shadow-subtle"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Apply</span>
+                </button>
               </div>
 
               {/* Action Controls */}
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search */}
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                <div className="relative flex-1 sm:flex-initial">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                   <input
                     type="text"
                     placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-7 pr-2.5 py-1 text-xs rounded-md border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-corporate-600 focus:ring-1 focus:ring-corporate-600 w-36 transition placeholder:text-slate-400"
+                    className="w-full sm:w-40 pl-8 pr-2.5 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-corporate-600 focus:ring-1 focus:ring-corporate-600 transition placeholder:text-slate-400"
                   />
                 </div>
 
                 {/* Status Tabs */}
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-md">
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl overflow-x-auto">
                   {["ALL", "PENDING", "APPROVED", "REJECTED"].map((st) => (
                     <button
                       key={st}
                       onClick={() => setStatusFilter(st)}
-                      className={`px-2 py-0.5 text-xs font-medium rounded transition-all duration-150 ${
+                      className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-150 whitespace-nowrap ${
                         statusFilter === st
                           ? "bg-white text-slate-900 shadow-subtle font-semibold"
                           : "text-slate-600 hover:text-slate-900"
@@ -319,17 +372,17 @@ export default function DashboardPage() {
                 {/* Symbol-focused Export */}
                 <a
                   href={`/api/admin/export?status=${statusFilter}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-150 shadow-subtle hover:scale-105 active:scale-95"
+                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-150 shadow-subtle hover:scale-105 active:scale-95"
                   title="Export to CSV"
                 >
                   <Download className="w-3.5 h-3.5 text-slate-500" />
                   <span>Export</span>
                 </a>
 
-                {/* Symbol-focused Apply Button */}
+                {/* Desktop Apply Button */}
                 <button
                   onClick={() => setIsApplyModalOpen(true)}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-corporate-600 hover:bg-corporate-700 text-white text-xs font-semibold shadow-subtle hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-corporate-600 hover:bg-corporate-700 text-white text-xs font-semibold shadow-subtle hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Apply</span>
@@ -337,10 +390,10 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (Hidden on mobile phones, shown on md and up) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/80 border-b border-slate-200/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                <thead className="bg-slate-50/80 border-b border-slate-200/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px] sticky top-0 z-10">
                   <tr>
                     <th className="py-2.5 px-4 font-semibold">ID</th>
                     <th className="py-2.5 px-4 font-semibold">Employee</th>
@@ -398,7 +451,7 @@ export default function DashboardPage() {
                             <div className="inline-flex items-center gap-1.5 justify-end">
                               <button
                                 onClick={() => setSelectedCscLeaveId(leave.id)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 transition-all duration-150 hover:scale-105 active:scale-95"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-all duration-150 hover:scale-105 active:scale-95"
                                 title="Official CSC Form No. 6"
                               >
                                 <FileCheck className="w-3 h-3 text-emerald-600" />
@@ -408,7 +461,7 @@ export default function DashboardPage() {
                               {canCancel && (
                                 <button
                                   onClick={() => handleCancelLeave(leave.id, leave.requestNumber)}
-                                  className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded border border-rose-200 transition-all duration-150 hover:scale-105 active:scale-95"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-all duration-150 hover:scale-105 active:scale-95"
                                   title="Withdraw Request"
                                 >
                                   <span className="font-bold">✕</span>
@@ -419,7 +472,7 @@ export default function DashboardPage() {
                               {isOwner && leave.status === "APPROVED" && (
                                 <button
                                   onClick={() => handleRequestCancellation(leave.id, leave.requestNumber)}
-                                  className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded border border-amber-200 transition-all duration-150 hover:scale-105 active:scale-95"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-all duration-150 hover:scale-105 active:scale-95"
                                   title="Request Leave Cancellation"
                                 >
                                   <span className="font-bold">⊘</span>
@@ -442,43 +495,133 @@ export default function DashboardPage() {
               </table>
             </div>
 
+            {/* Mobile Stacked Cards View (Shown on screens < md, optimized for touch) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {loading ? (
+                <div className="text-center py-8 text-slate-400 font-medium text-xs">
+                  Loading leave records...
+                </div>
+              ) : filteredLeaves.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 font-medium text-xs">
+                  No leave records matching this filter.
+                </div>
+              ) : (
+                filteredLeaves.map((leave) => {
+                  const isOwner = userProfile?.id === leave.userId;
+                  const canCancel =
+                    isOwner &&
+                    (leave.status === "PENDING" || leave.status === "MANAGER_APPROVED");
+
+                  return (
+                    <div
+                      key={leave.id}
+                      className="p-4 space-y-3 bg-white hover:bg-slate-50/70 transition-colors"
+                    >
+                      {/* Top Row: Request ID, Category, Status */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {leave.requestNumber}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-700 truncate max-w-[130px]">
+                            {leave.leaveType?.name}
+                          </span>
+                        </div>
+                        <StatusBadge status={leave.status} size="sm" />
+                      </div>
+
+                      {/* Middle Row: Employee & Date Details */}
+                      <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
+                        <div>
+                          <p className="font-medium text-slate-900">
+                            {leave.user?.firstName} {leave.user?.lastName}
+                          </p>
+                          <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                            {new Date(leave.startDate).toLocaleDateString()} — {new Date(leave.endDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-1 rounded-lg bg-corporate-50 border border-corporate-200/80 text-corporate-800 font-mono font-bold text-xs">
+                            {Number(leave.totalDays).toFixed(1)} days
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Actions */}
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          onClick={() => setSelectedCscLeaveId(leave.id)}
+                          className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 active:scale-95 transition-all"
+                        >
+                          <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Form 6</span>
+                        </button>
+
+                        {canCancel && (
+                          <button
+                            onClick={() => handleCancelLeave(leave.id, leave.requestNumber)}
+                            className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 active:scale-95 transition-all"
+                          >
+                            <span>Withdraw</span>
+                          </button>
+                        )}
+
+                        {isOwner && leave.status === "APPROVED" && (
+                          <button
+                            onClick={() => handleRequestCancellation(leave.id, leave.requestNumber)}
+                            className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 active:scale-95 transition-all"
+                          >
+                            <span>Cancel</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
             {/* Table Footer */}
-            <div className="px-4 py-2 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>{filteredLeaves.length} records</span>
-              <span>Strict RBAC</span>
+            <div className="px-4 py-2.5 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>{filteredLeaves.length} applications</span>
+              <span>CvSU CEIT • Portal</span>
             </div>
           </div>
         </div>
 
-        {/* Right Rail Panel */}
+        {/* Right Rail Panel (Responsive: side on desktop, stacked below on mobile) */}
         {userProfile && (
-          <RightRail
-            user={{
-              id: userProfile.id,
-              employeeCode: userProfile.employeeCode,
-              firstName: userProfile.firstName,
-              lastName: userProfile.lastName,
-              role: userProfile.role,
-              department: userProfile.department,
-            }}
-            onApplyClick={() => setIsApplyModalOpen(true)}
-          />
+          <div className="w-full lg:w-72 shrink-0">
+            <RightRail
+              user={{
+                id: userProfile.id,
+                employeeCode: userProfile.employeeCode,
+                firstName: userProfile.firstName,
+                lastName: userProfile.lastName,
+                role: userProfile.role,
+                department: userProfile.department,
+              }}
+              onApplyClick={() => setIsApplyModalOpen(true)}
+            />
+          </div>
         )}
       </div>
 
-      {/* Leave Application Modal */}
-      <ApplyLeaveModal
-        isOpen={isApplyModalOpen}
-        onClose={() => setIsApplyModalOpen(false)}
-        onSuccess={() => {
-          toast.success("Your leave application has been submitted.");
-          fetchData();
-        }}
-        leaveTypes={leaveTypes}
-        balances={balances}
-      />
+      {/* Leave Application Modal (Lazy Loaded) */}
+      {isApplyModalOpen && (
+        <ApplyLeaveModal
+          isOpen={isApplyModalOpen}
+          onClose={() => setIsApplyModalOpen(false)}
+          onSuccess={() => {
+            toast.success("Your leave application has been submitted.");
+            fetchData();
+          }}
+          leaveTypes={leaveTypes}
+          balances={balances}
+        />
+      )}
 
-      {/* Official Civil Service Commission Form No. 6 Modal */}
+      {/* Official Civil Service Commission Form No. 6 Modal (Lazy Loaded) */}
       {selectedCscLeaveId && (
         <CscForm6Modal
           leaveId={selectedCscLeaveId}

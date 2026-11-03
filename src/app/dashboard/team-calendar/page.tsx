@@ -100,9 +100,9 @@ export default function TeamCalendarPage() {
         breadcrumbs={["Workspace", "Calendar"]}
       />
 
-      <main className="flex-1 flex gap-5 overflow-hidden px-5 sm:px-8 pb-6 pt-4 animate-fade-in">
+      <main className="flex-1 flex flex-col lg:flex-row gap-5 overflow-y-auto px-4 sm:px-8 pb-6 pt-4 animate-fade-in">
         {/* Main Calendar Stage */}
-        <div className="flex-1 flex flex-col bg-white rounded-lg border border-slate-200/70 shadow-subtle overflow-hidden">
+        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200/80 shadow-subtle overflow-hidden min-h-[420px]">
           {/* Calendar Toolbar */}
           <div className="p-3.5 border-b border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white">
             <div className="flex items-center gap-2.5">
@@ -236,7 +236,7 @@ export default function TeamCalendarPage() {
         </div>
 
         {/* Selected Day Detail Sidebar */}
-        <aside className="w-72 shrink-0 bg-white rounded-lg border border-slate-200/70 shadow-subtle flex flex-col justify-between overflow-hidden">
+        <aside className="w-full lg:w-72 shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-subtle flex flex-col justify-between overflow-hidden">
           <div className="p-3.5 border-b border-slate-200/70 bg-slate-50/70">
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
               Day Breakdown

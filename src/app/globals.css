@@ -45,6 +45,15 @@
   }
 }
 
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @keyframes scaleIn {
   from {
     opacity: 0;
@@ -64,8 +73,23 @@
   animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.animate-slide-in-left {
+  animation: slideInLeft 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .animate-scale-in {
   animation: scaleIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Performance CSS Containment */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* Mobile Safe Area Inset */
+.pb-safe {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Smooth, calming scrollbars */
@@ -98,25 +122,15 @@
   aside,
   header,
   nav,
-  .print\:hidden {
+  button,
+  .no-print {
     display: none !important;
   }
-
-  body,
-  main,
-  #root,
-  #__next {
-    background: #ffffff !important;
-    color: #000000 !important;
-    overflow: visible !important;
-    height: auto !important;
-    width: 100% !important;
-    margin: 0 !important;
+  
+  body, main {
+    background: white !important;
+    color: black !important;
     padding: 0 !important;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 1.5cm;
+    margin: 0 !important;
   }
 }
